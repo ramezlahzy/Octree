@@ -5,12 +5,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.Properties;
 
 public class OctreeNode<T> {
     Range rangeX, rangeY, rangeZ;
     OctreeNode[] children;
-    private ArrayList<Point> data;
+    private ArrayList<Point<T>> data;
     static int maxCapacity;
 
     public OctreeNode(Object minX, Object maxX, Object minY, Object maxY, Object minZ, Object maxZ) throws IOException {
@@ -22,39 +24,55 @@ public class OctreeNode<T> {
         String fileName = "src/main/java/resources/TablesMetaData/DBApp.config";
         InputStream is = new FileInputStream(fileName);
         prop.load(is);
-        maxCapacity = Integer.parseInt(prop.getProperty("MaximumEntriesOctreeNode"));
+        maxCapacity = Integer.parseInt(prop.getProperty("MaximumEntriesinOctreeNode"));
     }
 
-    public void insert(Object x, Object y, Object z, String... data) throws DBAppException, IOException {
+    public void insert(Object x, Object y, Object z, T... data) throws DBAppException, IOException {
         if (children == null) {
+            boolean found = false;
+            ArrayList<Point<T>> list = getData();
+            for (int i = 0; i < list.size(); i++) {
+                Point<T> p = list.get(i);
+                if (p.x.equals( x) && p.y.equals( y) && p.z.equals(z)) {
+                    for (T datum : data) {
+                        p.duplicates.add(datum);
+                    }
+                    return;
+                }
+            }
             Point p = new Point(x, y, z);
             p.addData(data[0]);
+
             this.data.add(p);
             if (this.data.size() > maxCapacity)
                 split();
             return;
         }
-        children = new OctreeNode[8];
         for (int i = 0; i < children.length; i++) {
             OctreeNode child = children[i];
             if (child.rangeX.contains(x) && child.rangeY.contains(y) && child.rangeZ.contains(z)) {
                 child.insert(x, y, z, data);
-                break;
+                return;
             }
         }
+        throw new DBAppException("invalid Range");
     }
 
     private void split() throws DBAppException, IOException {
+        children = new OctreeNode[8];
         Range[] rangesX = rangeX.split(), rangesY = rangeY.split(), rangesZ = rangeZ.split();
         for (int i = 0; i < children.length; i++)
             children[i] = new OctreeNode<T>(rangesX[i >> 2 & 1].min, rangesX[i >> 2 & 1].max, rangesY[i >> 1 & 1].min, rangesY[i >> 1 & 1].max, rangesZ[i & 1].min, rangesZ[i & 1].max);
-        for (Point p : data)
-            here:for (OctreeNode child : children)
+        here:
+        for (Point<T> p : data) {
+            for (OctreeNode child : children)
                 if (child.rangeX.contains(p.x) && child.rangeY.contains(p.y) && child.rangeZ.contains(p.z)) {
-                    for (String data : p.getDuplicates())
+                    for (T data : p.getDuplicates())
                         child.insert(p.x, p.y, p.z, data);
-                    break here;
+                    continue here;
                 }
+            throw new DBAppException("invalid Range " + p.x + " " + p.y + " " + p.z);
+        }
         data.clear();
     }
 
@@ -105,8 +123,39 @@ public class OctreeNode<T> {
         }
     }
 
-    public ArrayList<Point> getData() {
+    public ArrayList<Point<T>> getData() {
         return data;
     }
 
+    @Override
+    public String toString() {
+        return "OctreeNode{" +
+                "rangeX=" + rangeX +
+                ", rangeY=" + rangeY +
+                ", rangeZ=" + rangeZ +
+                ", data=" + data +
+                ", children=\n" + Arrays.toString(children) +
+                "}\n";
+    }
+
+    public void print() {
+        System.out.println(this);
+    }
+
+    public static void main(String[] args) throws IOException, DBAppException {
+        OctreeNode<String> octreeNode = new OctreeNode<>(0, 1000, "a", "z", new Date("1/2/2000"), new Date("1/2/2030"));
+        octreeNode.insert(1, "a", new Date("1/2/2002"), "ramez");
+        octreeNode.insert(700, "z", new Date("1/2/2009"), "nashaat");
+        octreeNode.insert(700, "z", new Date("1/2/2009"), "lahzy");
+        System.out.println("before");
+        System.out.println(octreeNode.search(700, "z", new Date("1/2/2009")));
+        octreeNode.print();
+        octreeNode.delete(700, "z", new Date("1/2/2009"));
+
+        System.out.println("after");
+        octreeNode.delete(700, "z", new Date("1/2/2009"));
+        octreeNode.print();
+
+
+    }
 }

@@ -1,5 +1,6 @@
 package Octree;
 
+
 import java.util.Date;
 
 public class Range {
@@ -30,7 +31,9 @@ public class Range {
     public boolean contains(Object x) {
         if (x instanceof String)
             return ((String) x).compareTo((String) min) >= 0 && ((String) x).compareTo((String) max) <= 0;
-        else if (x instanceof Integer || x instanceof Double)
+        else if (x instanceof Integer)
+            return (Integer) x >= (Integer) min && (Integer) x <= (Integer) max;
+        else if (x instanceof Double)
             return (Double) x >= (Double) min && (Double) x <= (Double) max;
         else if (x instanceof Date)
             return ((Date) x).compareTo((Date) min) >= 0 && ((Date) x).compareTo((Date) max) <= 0;
@@ -65,5 +68,9 @@ public class Range {
 //        System.out.println(mid);
     }
 
-
+    @Override
+    public String toString() {
+        return  min +
+                "-> " + max ;
+    }
 }
